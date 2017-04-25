@@ -32,7 +32,7 @@ if [ -f $ENV_DIR/PYPICLOUD_USERNAME ] && [ -f $ENV_DIR/PYPICLOUD_PASSWORD ]; the
 fi
 
 echo "-----> Use build cache"
-if [ -d $CACHE_DIR/bin ]; then
+if [[ -d $CACHE_DIR/bin && -z "$IN_PLACE_BUILD" ]]; then
     echo "Get buildout results from the previous build" | indent
     cp -r $CACHE_DIR/bin  $BUILD_DIR/
     cp -r $CACHE_DIR/eggs  $BUILD_DIR/
@@ -41,7 +41,7 @@ if [ -d $CACHE_DIR/bin ]; then
         cp -r $CACHE_DIR/var  $BUILD_DIR/
     fi
 else
-    echo "Cache empty, start from scratch" | indent
+    [ -z "$IN_PLACE_BUILD" ] || echo "Cache empty, start from scratch" | indent
 fi
 
 echo "-----> Read BUILDOUT_CFG from env vars, or use default"
@@ -127,22 +127,31 @@ $APP_DIR/.heroku/python/bin/pip install pip==$VERSION_PIP setuptools==$VERSION_S
 
 echo "-----> Bootstrap buildout using Python provided by heroku-buildpack-python:"
 echo "$($APP_DIR/.heroku/python/bin/python --version)" | indent
-$APP_DIR/.heroku/python/bin/python bootstrap.py -c $BUILDOUT_CFG $BOOTSTRAP_VERBOSITY --setuptools-version $VERSION_SETUPTOOLS
+$APP_DIR/.heroku/python/bin/python bootstrap.py -c $BUILDOUT_CFG $BOOTSTRAP_VERBOSITY #--setuptools-version $VERSION_SETUPTOOLS
 
 echo "-----> Run bin/buildout -c ${BUILDOUT_CFG} ${BUILDOUT_VERBOSITY}"
 bin/buildout -c $BUILDOUT_CFG $BUILDOUT_VERBOSITY
 
-echo "-----> Copy results to cache"
-rm -rf $CACHE_DIR/bin
-rm -rf $CACHE_DIR/eggs
-rm -rf $CACHE_DIR/parts
-rm -rf $CACHE_DIR/var
+for filename in bin/*; do
+  sed -i 's|'$BUILD_DIR'/|/app/|g' $filename
+done
+[[ -f parts/odoo/openerp/cli/server.py ]] && sed -i 's/    check_postgres_user()/    print "skipping postgres user check"/g' parts/odoo/openerp/cli/server.py
+[[ -f parts/odoo/odoo/cli/server.py ]] && sed -i 's/    check_postgres_user()/    print "skipping postgres user check"/g' parts/odoo/odoo/cli/server.py
+# TODO disable similar check in Anybox recipe session
 
-cp -r $BUILD_DIR/bin $CACHE_DIR
-cp -r $BUILD_DIR/eggs $CACHE_DIR
-cp -r $BUILD_DIR/parts $CACHE_DIR
-if [ -d $BUILD_DIR/var ]; then
-    cp -r $BUILD_DIR/var $CACHE_DIR
+echo "-----> Copy results to cache"
+if [ -z "$IN_PLACE_BUILD" ]; then
+  rm -rf $CACHE_DIR/bin
+  rm -rf $CACHE_DIR/eggs
+  rm -rf $CACHE_DIR/parts
+  rm -rf $CACHE_DIR/var
+
+  cp -r $BUILD_DIR/bin $CACHE_DIR
+  cp -r $BUILD_DIR/eggs $CACHE_DIR
+  cp -r $BUILD_DIR/parts $CACHE_DIR
+  if [ -d $BUILD_DIR/var ]; then
+      cp -r $BUILD_DIR/var $CACHE_DIR
+  fi
 fi
 
 echo "Done" | indent
