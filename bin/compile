@@ -87,8 +87,11 @@ export PKG_CONFIG_PATH=$APP_DIR/.heroku/vendor/lib/pkg-config:$BUILD_DIR/.heroku
 cd $BUILD_DIR
 mkdir -p eggs  # zc.buildout expects this folder to exist
 
+echo "-----> Installing zc.buildout"
+$APP_DIR/.heroku/python/bin/pip install zc.buildout
+
 echo "-----> Run buildout -c ${BUILDOUT_CFG} ${BUILDOUT_VERBOSITY}"
-bin/buildout -c $BUILDOUT_CFG $BUILDOUT_VERBOSITY
+$APP_DIR/.heroku/python/bin/buildout -c $BUILDOUT_CFG $BUILDOUT_VERBOSITY
 
 for filename in bin/*; do
   sed -i 's|'$BUILD_DIR'/|/app/|g' $filename
