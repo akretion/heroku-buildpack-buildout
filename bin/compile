@@ -88,7 +88,7 @@ cd $BUILD_DIR
 mkdir -p eggs  # zc.buildout expects this folder to exist
 
 echo "-----> Run buildout -c ${BUILDOUT_CFG} ${BUILDOUT_VERBOSITY}"
-$APP_DIR/.heroku/python/bin/buildout -c $BUILDOUT_CFG $BUILDOUT_VERBOSITY
+buildout -c $BUILDOUT_CFG $BUILDOUT_VERBOSITY
 
 for filename in bin/*; do
   sed -i 's|'$BUILD_DIR'/|/app/|g' $filename
